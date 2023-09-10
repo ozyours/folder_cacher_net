@@ -7,6 +7,11 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        <ListBox x:Name="lsb_Folder_List" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="64"/>
+            <RowDefinition Height="194*"/>
+        </Grid.RowDefinitions>
+        <Button x:Name="btn_Add" FontSize="32" Grid.Column="0" Width="64" Margin="0,8,8,8" VerticalAlignment="Center" Content="+" Click="btn_Add_Click"/>
+        <ListBox x:Name="lsb_Folder_List" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Margin="0,8,0,0" Grid.Row="1"/>
     </Grid>
 </Window>

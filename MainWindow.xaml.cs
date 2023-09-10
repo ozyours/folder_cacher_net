@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using Newtonsoft.Json;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -12,33 +13,65 @@ namespace folder_cacher_net
         public MainWindow()
         {
             InitializeComponent();
+            AsyncInitialize();
+        }
 
-            //StreamFile();
-            for (int i = 0; i < 8; i++)
+        private async void AsyncInitialize()
+        {
+            await LoadConfig();
+
+            if (_FolderEntry.List.Count > 0)
+                foreach (var _entry in _FolderEntry.List)
+                {
+                    var _folder_entry = new folder_entry(this);
+                    _folder_entry.SetFolderEntry(_entry);
+                    lsb_Folder_List.Items.Add(_folder_entry);
+                }
+        }
+
+        public static readonly string CONFIG_FILE = "Config";
+
+        private static FConfig _FolderEntry;
+
+        public async Task LoadConfig()
+        {
+            if (File.Exists(CONFIG_FILE))
             {
-                var _folder_entry = new folder_entry();
-                lsb_Folder_List.Items.Add(_folder_entry);
+                await Task.Run(() =>
+                {
+                    _FolderEntry = JsonConvert.DeserializeObject<FConfig>(File.ReadAllText(CONFIG_FILE));
+                    if (_FolderEntry == null)
+                        _FolderEntry = new FConfig();
+                });
+            }
+            else
+            {
+                _FolderEntry = new FConfig();
             }
         }
 
-        public async void StreamFile()
+        public async Task SaveConfig()
         {
-            var PATH = "D:\\Documents\\Gears\\SteamLibrary\\steamapps\\common\\Little Nightmares\\Atlas\\Content\\Paks\\Atlas-WindowsNoEditor.pak";
+            var _fconfig = new FConfig();
 
-            var _file1 = new FileStream(PATH, FileMode.Open);
+            foreach (var _entry in lsb_Folder_List.Items)
+                _fconfig.List.Add(((folder_entry)_entry)._FolderEntry);
 
-            var _info = new FileInfo(PATH);
-            var _stream_end = _info.Length;
+            _FolderEntry = _fconfig;
 
-            await Task.Run(() =>
-            {
-                for (int i = 0; i < 1000; i++)
-                {
-                    _file1.ReadByte();
-                }
-            });
+            var _write_string = JsonConvert.SerializeObject(_FolderEntry);
+            
+            if (!File.Exists(CONFIG_FILE))
+                File.Create(CONFIG_FILE);
 
-            System.Environment.Exit(0);
+            StreamWriter _writer = new StreamWriter(CONFIG_FILE);
+            await _writer.WriteAsync(_write_string);
+            _writer.Close();
+        }
+
+        private void btn_Add_Click(object sender, RoutedEventArgs e)
+        {
+            lsb_Folder_List.Items.Add(new folder_entry(this));
         }
     }
 }
