@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Timers;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -13,11 +14,39 @@ namespace folder_cacher_net
     /// </summary>
     public partial class folder_entry : UserControl
     {
+        public FolderEntry _FolderEntry { get; private set; } = new FolderEntry();
+
+        private MainWindow Outer;
+        private byte RunStatus = 0;
+        private bool IsPaused = false;
+
+        private string DIRECTORY;
+        private float PERCENT;
+        private UInt32 WORKER;
+
+        private UInt32 CURRENT_FILE;
+        private UInt32 TOTAL_FILES;
+        private List<FileInfo> Files = new List<FileInfo>();
+
+        private List<Thread> Threads = new List<Thread>();
+        private UInt32 FinishedWorker;
+        private System.Timers.Timer _timer = new System.Timers.Timer();
+        private string NewStatus;
+
         public folder_entry(MainWindow _Outer)
         {
             InitializeComponent();
-            Application.Current.Deactivated += DeactivationDelegate;
             Outer = _Outer;
+            UpdateButtons();
+
+            Application.Current.Exit += OnExit;
+
+            _timer.Interval = 0.1;
+            _timer.Start();
+            _timer.Elapsed += (object sender, ElapsedEventArgs e) =>
+            {
+                WriteStatus();
+            };
         }
 
         private void SaveFolderEntry()
@@ -46,7 +75,7 @@ namespace folder_cacher_net
             LoadFolderEntry();
         }
 
-        private void DeactivationDelegate(object sender, EventArgs e)
+        private void OnExit(object sender, EventArgs e)
         {
             foreach (var _thread in Threads)
             {
@@ -54,74 +83,68 @@ namespace folder_cacher_net
             }
         }
 
-        public FolderEntry _FolderEntry { get; private set; } = new FolderEntry();
+        private void UpdateStatus(string _text)
+        {
+            NewStatus = _text;
+        }
 
-        private MainWindow Outer;
-        private bool IsRunning = false;
-        private bool IsPaused = false;
-
-        private string DIRECTORY;
-        private float PERCENT;
-        private UInt32 WORKER;
-
-        private UInt32 CURRENT_FILE;
-        private UInt32 TOTAL_FILES;
-        private List<FileInfo> Files = new List<FileInfo>();
-
-        private List<Thread> Threads = new List<Thread>();
-
-        private void WriteStatus(string _text)
+        private void WriteStatus()
         {
             this.Dispatcher.Invoke(() =>
             {
-                txt_Status.Text = _text;
+                txt_Status.Text = NewStatus;
             });
         }
 
         private void UpdateButtons()
         {
-            if (IsRunning)
+            this.Dispatcher.Invoke(() =>
             {
-                btn_Cache.Content = "Stop";
-                btn_Pause.Content = IsPaused ? "Resume" : "Pause";
-                btn_Pause.IsEnabled = true;
-            }
-            else
-            {
-                btn_Cache.Content = "Cache";
-                btn_Pause.Content = "Pause";
-                btn_Pause.IsEnabled = false;
-            }
+                if (RunStatus == 0)
+                {
+                    btn_Cache.Content = "Cache";
+                    btn_Pause.Content = "Pause";
+                    btn_Pause.IsEnabled = false;
+                }
+                else if (RunStatus == 1)
+                {
+                }
+                else if (RunStatus == 2)
+                {
+                    btn_Cache.Content = "Stop";
+                    btn_Pause.Content = IsPaused ? "Resume" : "Pause";
+                    btn_Pause.IsEnabled = true;
+                }
+            });
         }
 
         private void Worker(List<FileInfo> _Files)
         {
-            int _index = 0;
-
-            while (_index < _Files.Count - 1)
+            foreach (var _file in _Files)
             {
-                var _file = _Files[_index];
-
-                if (this.IsPaused)
+                while (IsPaused || RunStatus != 2)
                 {
                     Thread.Sleep(100);
                 }
-                else
-                {
-                    try
-                    {
-                        var _length = _file.Length * PERCENT;
-                        var _file_stream = new FileStream(_file.FullName, FileMode.Open);
-                        for (int i = 0; i < _length; i++)
-                            _file_stream.ReadByte();
-                        _file_stream.Close();
-                    }
-                    catch (Exception ex) { }
 
-                    CURRENT_FILE++;
-                    _index++;
-                    WriteStatus(CURRENT_FILE.ToString() + "/" + TOTAL_FILES.ToString());
+                try
+                {
+                    var _length = _file.Length * PERCENT;
+                    var _file_stream = new FileStream(_file.FullName, FileMode.Open);
+                    for (int i = 0; i < _length; i++)
+                        _file_stream.ReadByte();
+                    _file_stream.Close();
                 }
+                catch (Exception ex) { }
+
+                CURRENT_FILE++;
+                UpdateStatus((CURRENT_FILE * 100 / TOTAL_FILES) + "%: " + CURRENT_FILE.ToString() + "/" + TOTAL_FILES.ToString());
+            }
+            FinishedWorker++;
+            if (FinishedWorker == WORKER)
+            {
+                RunStatus = 0;
+                UpdateButtons();
             }
         }
 
@@ -144,6 +167,7 @@ namespace folder_cacher_net
             Int32.TryParse(txt_Worker.Text, out _worker);
             WORKER = Math.Max(WORKER, 1);
             WORKER = (UInt32)_worker;
+            FinishedWorker = 0;
 
             Files = new List<FileInfo>();
             Threads = new List<Thread>();
@@ -155,7 +179,7 @@ namespace folder_cacher_net
 
             if (!Directory.Exists(DIRECTORY))
             {
-                WriteStatus("Error: Directory path is not exist.");
+                UpdateStatus("Error: Directory path is not exist.");
                 return;
             }
             Console.WriteLine("Listing");
@@ -167,39 +191,50 @@ namespace folder_cacher_net
 
         private async Task Caching()
         {
-            IsRunning = true;
-            UpdateButtons();
+            RunStatus = 1;
 
             // ###############################################
             // ###############################################
             // ####     List files
             // ####
 
-            WriteStatus("Listing");
+            UpdateStatus("Listing");
 
             await Task.Run(() =>
-            {
-                var _directory_info = new DirectoryInfo(DIRECTORY);
-                Files.AddRange(_directory_info.GetFiles("*", SearchOption.AllDirectories));
-            });
+             {
+                 var _directory_info = new DirectoryInfo(DIRECTORY);
+                 Files.AddRange(_directory_info.GetFiles("*", SearchOption.AllDirectories));
+             });
 
             TOTAL_FILES = (UInt32)Files.Count;
 
-            for (int i = 0; i < WORKER; i++)
+            // Create worker
+            await Task.Run(() =>
             {
-                int _length = (int)(TOTAL_FILES / WORKER);
-                int _start = i * _length;
+                for (int i = 0; i < WORKER; i++)
+                {
+                    int _length = (int)(TOTAL_FILES / WORKER);
+                    int _start = i * _length;
 
-                // Set end to the length if the loop is index is the last index
-                if (i == WORKER - 1)
-                    _length = (int)TOTAL_FILES - _start;
+                    // Set end to the length if the loop is index is the last index
+                    if (i == WORKER - 1)
+                        _length = (int)TOTAL_FILES - _start;
 
-                Thread _thread = new Thread(() => Worker(Files.GetRange(_start, _length)));
-                Threads.Add(_thread);
-            }
+                    Thread _thread = new Thread(() => Worker(Files.GetRange(_start, _length)));
+                    _thread.Priority = ThreadPriority.Lowest;
+                    Threads.Add(_thread);
+                }
+            });
 
-            foreach (var _thread in Threads)
-                _thread.Start();
+            // Start worker
+            await Task.Run(() =>
+            {
+                foreach (var _thread in Threads)
+                    _thread.Start();
+            });
+
+            RunStatus = 2;
+            UpdateButtons();
         }
 
         private async Task PauseCaching()
@@ -216,15 +251,22 @@ namespace folder_cacher_net
 
         private async void StopCaching()
         {
-            foreach (var _thread in Threads)
-                _thread.Abort();
+            // Stop worker
+            await Task.Run(() =>
+            {
+                foreach (var _thread in Threads)
+                    _thread.Abort();
+            });
 
-            IsRunning = false;
+            RunStatus = 0;
+            IsPaused = false;
             UpdateButtons();
         }
 
         private void btn_Remove_Click(object sender, RoutedEventArgs e)
         {
+            Outer.lsb_Folder_List.Items.Remove(this);
+            Outer.SaveConfig();
         }
 
         private void btn_Pause_Click(object sender, RoutedEventArgs e)
@@ -240,10 +282,19 @@ namespace folder_cacher_net
             SaveFolderEntry();
             await Outer.SaveConfig();
 
-            if (IsRunning)
-                StopCaching();
-            else
-                TryToCache();
+            switch (RunStatus)
+            {
+                case 0:
+                    TryToCache();
+                    break;
+
+                case 1:
+                    break;
+
+                case 2:
+                    StopCaching();
+                    break;
+            }
         }
     }
 }

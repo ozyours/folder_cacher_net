@@ -6,7 +6,9 @@ namespace folder_cacher_net
     [Serializable]
     public class FolderEntry
     {
-        public FolderEntry() { }
+        public FolderEntry()
+        { }
+
         public FolderEntry(string _DirectoryPath, float _Percent, UInt32 _Worker)
         {
             DirectoryPath = _DirectoryPath;
@@ -26,6 +28,17 @@ namespace folder_cacher_net
         {
             List = new List<FolderEntry>();
         }
+
         public List<FolderEntry> List;
+    }
+
+    public class FolderEntryComparer : IComparer<FolderEntry>
+    {
+        public int Compare(FolderEntry A, FolderEntry B)
+        {
+            if (A.DirectoryPath == null || B.DirectoryPath == null)
+                return ((A.DirectoryPath == null) ? 0 : 1) - ((B.DirectoryPath == null) ? 0 : 1);
+            return A.DirectoryPath.CompareTo(B.DirectoryPath);
+        }
     }
 }

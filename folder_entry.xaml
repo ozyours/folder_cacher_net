@@ -20,7 +20,7 @@
         </Grid.RowDefinitions>
         <Rectangle Grid.ColumnSpan="99" Grid.RowSpan="99" Stroke="Black"/>
         <TextBox x:Name="txt_Path" Grid.Row="0" Grid.ColumnSpan="99" Margin="4,8,4,8" TextWrapping="NoWrap" VerticalContentAlignment="Center" Padding="4" Text="Path" />
-        <TextBox x:Name="txt_Status" Grid.Row="1" Grid.Column="0" Margin="8,8,8,8" TextWrapping="NoWrap" VerticalContentAlignment="Center" Padding="4" Text="Status" />
+        <TextBox x:Name="txt_Status" Grid.Row="1" Grid.Column="0" Margin="8,8,8,8" TextWrapping="NoWrap" VerticalContentAlignment="Center" Padding="4" Text="Status" IsReadOnly="True" />
         <TextBox x:Name="txt_Percent" Grid.Row="1" Grid.Column="1" Margin="8,8,8,8" TextWrapping="NoWrap" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="4" Text="50" />
         <TextBox x:Name="txt_Worker" Grid.Row="1" Grid.Column="2" Margin="8,8,8,8" TextWrapping="NoWrap" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="4" Text="1" />
         <Button x:Name="btn_Cache" Grid.Row="1" Grid.Column="3" Margin="4" Content="Cache" Click="btn_Cache_Click" />

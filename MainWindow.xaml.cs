@@ -20,6 +20,8 @@ namespace folder_cacher_net
         {
             await LoadConfig();
 
+            _FolderEntry.List.Sort(new FolderEntryComparer());
+
             if (_FolderEntry.List.Count > 0)
                 foreach (var _entry in _FolderEntry.List)
                 {
@@ -60,7 +62,7 @@ namespace folder_cacher_net
             _FolderEntry = _fconfig;
 
             var _write_string = JsonConvert.SerializeObject(_FolderEntry);
-            
+
             if (!File.Exists(CONFIG_FILE))
                 File.Create(CONFIG_FILE);
 
