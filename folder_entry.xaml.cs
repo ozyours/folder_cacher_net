@@ -25,6 +25,7 @@ namespace folder_cacher_net
         private UInt32 WORKER;
 
         private UInt32 CURRENT_FILE;
+        private UInt32 FINISHED_FILES;
         private UInt32 TOTAL_FILES;
         private List<FileInfo> Files = new List<FileInfo>();
 
@@ -118,14 +119,33 @@ namespace folder_cacher_net
             });
         }
 
-        private void Worker(List<FileInfo> _Files)
+        private FileInfo GetFileInfo()
         {
-            foreach (var _file in _Files)
+            FileInfo _file = null;
+            this.Dispatcher.Invoke(() =>
+            {
+                if (CURRENT_FILE < Files.Count)
+                {
+                    _file = Files[(int)CURRENT_FILE];
+                    CURRENT_FILE++;
+                }
+            });
+
+            return _file;
+        }
+
+        private void Worker()
+        {
+            while (true)
             {
                 while (IsPaused || RunStatus != 2)
                 {
-                    Thread.Sleep(100);
+                    Thread.Sleep(500);
                 }
+
+                var _file = GetFileInfo();
+                if (_file == null || CURRENT_FILE == TOTAL_FILES)
+                    break;
 
                 try
                 {
@@ -137,9 +157,11 @@ namespace folder_cacher_net
                 }
                 catch (Exception ex) { }
 
-                CURRENT_FILE++;
-                UpdateStatus((CURRENT_FILE * 100 / TOTAL_FILES) + "%: " + CURRENT_FILE.ToString() + "/" + TOTAL_FILES.ToString());
+                // Increase the 'FINISHED_FILES' counter
+                FINISHED_FILES++;
+                UpdateStatus((FINISHED_FILES * 100 / TOTAL_FILES) + "%: " + FINISHED_FILES.ToString() + "/" + TOTAL_FILES.ToString());
             }
+
             FinishedWorker++;
             if (FinishedWorker == WORKER)
             {
@@ -158,6 +180,7 @@ namespace folder_cacher_net
             DIRECTORY = txt_Path.Text;
 
             CURRENT_FILE = 0;
+            FINISHED_FILES = 0;
 
             float.TryParse(txt_Percent.Text, out PERCENT);
             PERCENT = Math.Max(Math.Min(PERCENT, 100), 0);
@@ -220,7 +243,7 @@ namespace folder_cacher_net
                     if (i == WORKER - 1)
                         _length = (int)TOTAL_FILES - _start;
 
-                    Thread _thread = new Thread(() => Worker(Files.GetRange(_start, _length)));
+                    Thread _thread = new Thread(() => Worker());
                     _thread.Priority = ThreadPriority.Lowest;
                     Threads.Add(_thread);
                 }
