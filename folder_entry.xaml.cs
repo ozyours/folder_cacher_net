@@ -152,7 +152,7 @@ namespace folder_cacher_net
                     var _length = _file.Length * PERCENT;
 
                     var _read_stream = new StreamReader(_file.FullName);
-                    char[] _buffer = new char[1024];
+                    char[] _buffer = new char[(int)_length];
                     _read_stream.ReadBlock(_buffer, 0, (int)_length);
                 }
                 catch (Exception ex) { }
