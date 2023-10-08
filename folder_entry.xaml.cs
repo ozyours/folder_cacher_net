@@ -150,10 +150,10 @@ namespace folder_cacher_net
                 try
                 {
                     var _length = _file.Length * PERCENT;
-                    var _file_stream = new FileStream(_file.FullName, FileMode.Open);
-                    for (int i = 0; i < _length; i++)
-                        _file_stream.ReadByte();
-                    _file_stream.Close();
+
+                    var _read_stream = new StreamReader(_file.FullName);
+                    char[] _buffer = new char[1024];
+                    _read_stream.ReadBlock(_buffer, 0, (int)_length);
                 }
                 catch (Exception ex) { }
 
